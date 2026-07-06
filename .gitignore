@@ -1,0 +1,16 @@
+# Virtual environment
+venv/
+ENV/
+env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases (Local development)
+*.sqlite3
+
+# Environments / Secrets
+.env
+.secrets
