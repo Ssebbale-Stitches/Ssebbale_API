@@ -25,13 +25,41 @@ def tokens_for_user(user):
     return {"access": str(refresh.access_token), "refresh": str(refresh)}
 
 
+def _login(request, *, require_admin=False):
+    serializer = LoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    email = serializer.validated_data["email"].lower().strip()
+    password = serializer.validated_data["password"]
+
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return Response({"detail": "Invalid email or password."}, status=401)
+
+    if not user.check_password(password):
+        return Response({"detail": "Invalid email or password."}, status=401)
+    if not user.is_email_verified:
+        return Response(
+            {"detail": "Please verify your email first.", "code": "unverified"},
+            status=403,
+        )
+    if not user.is_active:
+        return Response({"detail": "This account has been disabled."}, status=403)
+    if require_admin and not user.is_admin:
+        return Response({"detail": "Admin access required."}, status=403)
+    if not require_admin and not user.is_tailor:
+        return Response({"detail": "Tailor access required."}, status=403)
+
+    return Response({**tokens_for_user(user), "user": UserSerializer(user).data})
+
+
 class SignupView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        user = serializer.save(is_tailor=True)   # ← every signup here is a tailor
 
         otp = OTP.create_for(user, OTP.PURPOSE_SIGNUP)
         send_otp_email(user, otp, "email verification")
@@ -99,25 +127,19 @@ class ResendOtpView(APIView):
 
 
 class LoginView(APIView):
+    """Tailor login."""
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"].lower().strip()
-        password = serializer.validated_data["password"]
+        return _login(request, require_admin=False)
 
-        try:
-            user = User.objects.get(email=email, is_email_verified=True)
-        except User.DoesNotExist:
-            return Response({"detail": "Invalid email or password."}, status=401)
 
-        if not user.check_password(password):
-            return Response({"detail": "Invalid email or password."}, status=401)
-        if not user.is_active:
-            return Response({"detail": "This account has been disabled."}, status=403)
+class AdminLoginView(APIView):
+    """Admin login."""
+    permission_classes = [AllowAny]
 
-        return Response({**tokens_for_user(user), "user": UserSerializer(user).data})
+    def post(self, request):
+        return _login(request, require_admin=True)
 
 
 class ForgotPasswordView(APIView):
