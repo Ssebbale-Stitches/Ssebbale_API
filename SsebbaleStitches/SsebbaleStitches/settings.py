@@ -114,8 +114,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "Ssebbale Stitches <no-reply@ssebbalestitches.com>"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.resend.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "resend"
+EMAIL_HOST_PASSWORD = os.environ["RESEND_API_KEY"]
+DEFAULT_FROM_EMAIL = "Ssebbale Stitches <onboarding@resend.dev>"
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
